@@ -159,26 +159,26 @@ class SubgoalACAgent(ActorCriticAgent):
         super(SubgoalACAgent, self).__init__(seed, action_space, observation_space, basis_order, epsilon, gamma, lr_theta, lr_q)
         self.eta = eta
         self.rho = rho
-        # self.subgoal_potential_reward_shaping\
-        #     = SubgoalPotentialRewardShaping(subgoals, gamma, eta, rho)
-        self.reward_shaping = SubgoalSarsaRewardShaping(subgoals, gamma, gamma_v, lr_q, self.fourier_basis)    
+        self.subgoal_potential_reward_shaping\
+            = SubgoalPotentialRewardShaping(subgoals, gamma, eta, rho)
+        # self.reward_shaping = SubgoalSarsaRewardShaping(subgoals, gamma, gamma_v, lr_q, self.fourier_basis)    
         # self.reward_shaping = NaiveRewardShaping(subgoals, gamma, eta)
         self.l_subepisodes = 0
         self.pre_l_subepisodes = 0
     
     def update(self, pre_obs, pre_a, r, obs, a, done):
-        # self.pre_l_subepisodes = self.l_subepisodes
-        # self.l_subepisodes += 1
+        self.pre_l_subepisodes = self.l_subepisodes
+        self.l_subepisodes += 1
         # print(f"{self.l_subepisodes}, F = {f}")
-        # if self.subgoal_potential_reward_shaping.get_is_reach_subgoal():
-        #     # サブゴールに到達した場合
-        #     self.l_subepisodes = 0
+        if self.subgoal_potential_reward_shaping.get_is_reach_subgoal():
+            # サブゴールに到達した場合
+            self.l_subepisodes = 0
 
-        # f = self.subgoal_potential_reward_shaping.value(pre_obs, self.pre_l_subepisodes,
-        #                                                 obs, self.l_subepisodes)
-        f = self.reward_shaping.value(pre_obs, pre_a, r, obs, done)
-        if done:
-            self.reward_shaping.reset()
+        f = self.subgoal_potential_reward_shaping.value(pre_obs, self.pre_l_subepisodes,
+                                                        obs, self.l_subepisodes)
+        # f = self.reward_shaping.value(pre_obs, pre_a, r, obs, done)
+        # if done:
+        #     self.reward_shaping.reset()
         # TODO r+f
         # print(f"f: {f}")
         super().update(pre_obs, pre_a, r+f, obs, a, done)
