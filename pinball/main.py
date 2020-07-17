@@ -132,16 +132,6 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Actor-Critic Learning.')
-    parser.add_argument('env_id', nargs='?', default='Pinball-Subgoal-v0', help='Select the environment to run.')
-    parser.add_argument('--vis', action='store_true', help='Attach when you want to look visual results.')
-    parser.add_argument('--model', help='Input model dir path')
-    parser.add_argument('--nepisodes', default=250, type=int)
-    parser.add_argument('--nruns', default=25, type=int)
-    parser.add_argument('--id', default='', type=str)
-    parser.add_argument('--subg-path', default='', type=str)
-    
-    args = parser.parse_args()
     learning_time = time.time()
     rhos = [0.01]
     etas = [10000]
@@ -166,4 +156,14 @@ def main():
     print("Learning time: {}m {}s".format(int(duration//60), int(duration%60)))
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Actor-Critic Learning.')
+    parser.add_argument('env_id', nargs='?', default='Pinball-Subgoal-v0', help='Select the environment to run.')
+    parser.add_argument('--vis', action='store_true', help='Attach when you want to look visual results.')
+    parser.add_argument('--model', help='Input model dir path')
+    parser.add_argument('--nepisodes', default=250, type=int)
+    parser.add_argument('--nruns', default=25, type=int)
+    parser.add_argument('--id', default='', type=str)
+    parser.add_argument('--subg-path', default='', type=str)
+    
+    args = parser.parse_args()
     main()
