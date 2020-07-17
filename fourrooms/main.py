@@ -242,5 +242,5 @@ if __name__ == '__main__':
     analysis_dir = prep_dir(os.path.join("res", "analysis"))
     steps_dir = prep_dir(os.path.join("res", "steps"))
     runtimes_dir = prep_dir(os.path.join("res", "runtime"))
-    # main()
-    main_hypara()
+    main()
+    # main_hypara()
