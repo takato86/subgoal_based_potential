@@ -3,7 +3,7 @@ import math
 import logging
 from entity.policy import SoftmaxPolicy, FixedActionPolicy, SoftmaxStepPolicy
 from entity.tabular import Tabular
-from entity.reward_shaping import CumulativeSubgoalRewardWithPenalty
+from entity.reward_shaping import CumulativeSubgoalRewardWithPenalty, NaiveSubgoalRewardShaping
 import csv
 
 # logging.basicConfig(level=logging.DEBUG)
@@ -18,8 +18,9 @@ class ActorSubgoalCriticAgent:
         self.policy_improvement = PolicyGradient(self.policy, lr_policy)
         self.features = Tabular(nfeatures)
         # self.subgoal_reward = NegativeSubgoalRewardShaping(discount, eta, subgoals, nfeatures, rho)
-        self.subgoal_reward = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
+        # self.subgoal_reward = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
         # self.subgoal_reward = SubgoalTemporalReward(discount, eta, subgoals, nfeatures)
+        self.subgoal_reward = NaiveSubgoalRewardShaping(discount, eta, subgoals, nfeatures)
         self.eta = eta
         self.total_shaped_reward = 0
 

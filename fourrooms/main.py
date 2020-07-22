@@ -111,6 +111,8 @@ def learning_loop(nruns, nepisodes, nsteps, discount, lr_term, lr_intra,
         agent = ActorSubgoalCriticAgent(discount, eta, lr_critic,
                                         lr_intra, nfeatures, nactions, temperature,
                                         rng, subgoals, rho)
+        # agent = ActorCriticAgent(discount, lr_critic, lr_intra, nfeatures, nactions, temperature,
+        #                          rng)
         # agent = QLearningAgent(discount, epsilon, lr_critic, nfeatures,
         #                        nactions, temperature, rng)
         # agent = SubgoalRSQLearningAgent(discount, epsilon, lr_critic, nfeatures, nactions,
@@ -135,8 +137,8 @@ def learning_loop(nruns, nepisodes, nsteps, discount, lr_term, lr_intra,
                 episodes.append([episode, step, observation, action, next_observation])
                 cumreward += reward
                 if done:
-                    print("true goal: {}, actual goal: {}, reward: {}"
-                          .format(env.goal, next_observation, reward))
+                    print("goal: {}, reward: {}"
+                          .format(env.goal, reward))
                     break
             steps.append(step)
             print('Run {} episode {} steps {} cumreward {}'
@@ -189,8 +191,8 @@ def main():
 def main_hypara():
     subgoal = [[25, 62]]
     logger.info(f"hyper parameter tuning.")
-    etas = [0.1, 0.5, 1.0, 10]
-    rhos = [0, 1e-5, 1e-3, 1e-1, 1]
+    etas = [100]  # 0.1, 0.5, 1.0, 10
+    rhos = [0] # , 1e-5, 1e-3, 1e-1, 1
     for i, eta in enumerate(etas):
         for j, rho in enumerate(rhos):
             learn_id = i*10 + j
