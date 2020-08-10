@@ -4,9 +4,7 @@ import logging
 from .policy import SoftmaxPolicy, EgreedyPolicy
 from .tabular import Tabular
 from .reward_shaping import CumulativeSubgoalRewardWithPenalty,\
-                            NaiveSubgoalRewardShaping,\
-                            SubgoalThroughPotentialRewardShaping
-
+                            NaiveSubgoalRewardShaping
 import csv
 
 logger = logging.getLogger(__name__)
@@ -35,9 +33,9 @@ class QLearningAgent:
 class SubgoalRSQLearningAgent(QLearningAgent):
     def __init__(self, discount, epsilon, lr, nfeatures, nactions, temperature, rng, subgoals, eta, rho=0):
         super(SubgoalRSQLearningAgent, self).__init__(discount, epsilon, lr, nfeatures, nactions, temperature, rng)
-        # self.reward_shaping = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
+        self.reward_shaping = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
         # self.reward_shaping = NaiveSubgoalRewardShaping(discount, eta, subgoals, nfeatures)
-        self.reward_shaping = SubgoalThroughPotentialRewardShaping(discount, eta, subgoals, nfeatures, rho) 
+        # self.reward_shaping = SubgoalThroughPotentialRewardShaping(discount, eta, subgoals, nfeatures, rho) 
         
     def update(self, state, action, next_state, reward, done):
         phi = self.features(state)

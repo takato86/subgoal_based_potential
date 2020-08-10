@@ -5,7 +5,6 @@ from .policy import SoftmaxPolicy, EgreedyPolicy
 from .tabular import Tabular
 from .reward_shaping import CumulativeSubgoalRewardWithPenalty,\
                             NaiveSubgoalRewardShaping,\
-                            SubgoalThroughPotentialRewardShaping,\
                             SarsaRewardShaping,\
                             SubgoalSarsaRewardShaping
 
