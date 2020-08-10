@@ -108,11 +108,11 @@ def learning_loop(nruns, nepisodes, nsteps, discount, lr_term, lr_intra,
         # subgoal_values = [[100 for s in subgoal_series] for subgoal_series in subgoals]
         # subgoal_values = [[1, 10]]  
         subgoal_values = None
-        agent = ActorSubgoalCriticAgent(discount, eta, lr_critic,
-                                        lr_intra, nfeatures, nactions, temperature,
-                                        rng, subgoals, rho)
-        # agent = ActorCriticAgent(discount, lr_critic, lr_intra, nfeatures, nactions, temperature,
-        #                          rng)
+        # agent = ActorSubgoalCriticAgent(discount, eta, lr_critic,
+        #                                 lr_intra, nfeatures, nactions, temperature,
+        #                                 rng, subgoals, rho)
+        agent = ActorCriticAgent(discount, lr_critic, lr_intra, nfeatures, nactions, temperature,
+                                 rng)
         # agent = QLearningAgent(discount, epsilon, lr_critic, nfeatures,
         #                        nactions, temperature, rng)
         # agent = SubgoalRSQLearningAgent(discount, epsilon, lr_critic, nfeatures, nactions,

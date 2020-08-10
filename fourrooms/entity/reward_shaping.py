@@ -27,97 +27,12 @@ class SubgoalReward:
         self.eta = eta
         self.subgoal_serieses = subgoal_serieses
         self.curr_subgoal_series = {}
-        self.curr_index = 0
+        self.next_subgoals = {}
         self.curr_val = 0
         self.features = Tabular(nfeatures)
-
-    def done(self, state):
-        if len(self.curr_subgoal_series) == 0:
-            for subgoal_series in self.subgoal_serieses:
-                if state in subgoal_series:
-                    return True
-        elif self.curr_index < len(self.curr_subgoal_series):
-            if state == self.curr_subgoal_series[self.curr_index]:
-                return True
-        return False
     
     def fit(self, state, reward, done):
         pass
-
-
-class CumulativeSubgoalReward(SubgoalReward):
-    """サブゴール発見後、同じ報酬値が生成される。
-    
-    Arguments:
-        SubgoalReward {[type]} -- [description]
-    
-    Raises:
-        Exception: [description]
-    
-    Returns:
-        [type] -- [description]
-    """
-    def __init__(self, discount, eta, subgoal_serieses, nfeatures):
-        super(CumulativeSubgoalReward, self).__init__(discount, eta, subgoal_serieses, nfeatures)
-
-    def value(self, state, done):
-        last_val = self.curr_val
-        if len(self.curr_subgoal_series) == 0:
-            # サブゴールを1つも発見していない状況
-            for subgoal_series in self.subgoal_serieses:
-                if state in subgoal_series:
-                    logger.debug(f"Hit subgoal {state}")
-                    self.curr_subgoal_series = subgoal_series
-                    logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                    self.curr_index = subgoal_series.index(state) + 1
-                    if self.curr_index > 0:
-                        self.curr_val = self.curr_index * self.eta
-                        # self.curr_val = sum([i for i in range(self.curr_index+1)]) # 二番目のサブゴールから始める時はs_1 + s_2の大きさにする．
-                    # elif self.curr_index == 1:
-                    #     self.curr_val = self.eta
-                    else:
-                        raise Exception("index value is invalid.")
-
-        elif self.curr_index < len(self.curr_subgoal_series):
-            # サブゴールがまだある
-            if state == self.curr_subgoal_series[self.curr_index]:
-                logger.debug(f"Hit subgoal at {state}, index: {self.curr_index}.")
-                self.curr_val += self.eta
-                self.curr_index += 1
-
-        logger.debug(f"potential value: {self.curr_val}, {last_val}")
-        additional_reward = self.discount * self.curr_val - last_val
-
-        if done:
-            self.curr_subgoal_series = {}
-            self.curr_val = 0
-            self.curr_index = 0
-        
-        return additional_reward
-
-
-class NegativeStepReward:
-    """ステップごとにペナルティがかかる、悪い結果になった。
-    
-    Returns:
-        [type] -- [description]
-    """
-    def __init__(self, gamma, rho):
-        self.curr_value = 0
-        self.gamma = gamma
-        self.rho = rho
-
-    def value(self, state, done):
-        last_value = self.curr_value
-        self.curr_value = -self.penalty()
-        logger.debug(f"potential value: {self.curr_value}, {last_value}")
-        logger.debug(f"penalty value: {self.penalty()}")
-        additional_reward = self.gamma * self.curr_value - last_value
-        logger.debug(f"Additional Reward: {additional_reward}")
-        return additional_reward
-
-    def penalty(self):
-        return self.rho
 
 
 class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
@@ -135,53 +50,68 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
         self.rho = rho # 0になるステップ数
         self.time = 0 # 時間（ステップ数）
         self.potential_values = []
+        self.next_subgoals = self.init_next_subgoals(subgoal_serieses)
+        self.n_achievements = 0
+    
+    def init_next_subgoals(self, subgoal_serieses):
+        subgoal_dict = {}
+        for i, series in enumerate(subgoal_serieses):
+            j = 0
+            subgoal = series[j]
+            subgoal_dict[subgoal] = (i, j)
+        return subgoal_dict
+
+    def achieve(self, index):
+        subgoal_dict = {}
+        series = self.subgoal_serieses[index[0]]
+        next_x = index[1] + 1
+        if next_x > len(series):
+            return subgoal_dict
+        if type(series[next_x]) == list:
+            raise NotImplementedError
+        subgoal_dict[series[next_x]] = (index[0], next_x)
+        return subgoal_dict
 
     def value(self, state, done):
         last_val = self.curr_val
         self.nsteps += 1
         self.time += 1
-        if len(self.curr_subgoal_series) == 0:
-            # サブゴールを1つも発見していない状況
-            for subgoal_series in self.subgoal_serieses:
-                if state in subgoal_series:
-                    logger.debug(f"Hit subgoal {state}")
-                    self.curr_subgoal_series = subgoal_series
-                    logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                    self.curr_index = subgoal_series.index(state) + 1
-                    self.time = 0
-                    break
-        elif self.curr_index < len(self.curr_subgoal_series):
-            # サブゴールがまだある
-            if state == self.curr_subgoal_series[self.curr_index]:
-                logger.debug(f"Hit subgoal at {state}, index: {self.curr_index}.")
-                self.curr_index += 1
-                self.time = 0
-
-        # self.curr_val = 0
-        # if not done:
-        self.curr_val = self.constant_value()
+        if self.at_subgoal(state):
+            self.time = 0
+            next_index = self.next_subgoals[state]
+            self.next_subgoals = self.achieve(next_index)
+            self.n_achievements += 1
+        
+        self.curr_val = self.constant_value() - self.penalty()
         # self.curr_val = self.elliptic_value()
-        # self.curr_val = max(self.constant_value() - self.penalty(), 0)
         self.potential_values.append([str(self.curr_val)])
         logger.debug(f"potential value: {self.curr_val}, {last_val}")
         # logger.debug(f"penalty value: {self.penalty()}") 
         # print(f"{self.curr_val}")
         additional_reward = self.discount * self.curr_val - last_val
         if done:
-            self.curr_subgoal_series = {}
-            self.curr_val = 0
-            self.curr_index = 0
-            self.nsteps = 0
-            self.time = 0
-            self.potential_values.append([])
+            self.reset()
         logger.debug(f"additional reward: {additional_reward}")
         return additional_reward
 
-    def penalty(self):
-        if self.curr_index > 0:
-            return self.rho * self.time
+    def at_subgoal(self, state):
+        next_index = self.next_subgoals.get(state)
+        if next_index == None:
+            return False
         else:
-            return 0
+            logger.debug(f"Hit subgoal {state}")
+            return True
+
+    def reset(self):
+        self.next_subgoals = self.init_next_subgoals(subgoal_serieses)
+        self.n_achievements = 0
+        self.curr_val = 0
+        self.nsteps = 0
+        self.time = 0
+        self.potential_values.append([])
+
+    def penalty(self):
+        return self.rho * self.time
     
     def export(self, file_name):
         with open(file_name, "w", encoding='utf-8') as f:
@@ -189,7 +119,7 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
             writer.writerows(self.potential_values)
 
     def constant_value(self):
-        return self.eta * self.curr_index
+        return self.eta * self.n_achievements
 
     def elliptic_value(self):
         value = 1 - self.time**2/self.rho**2
@@ -197,37 +127,6 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
             return 0
         else:
             return self.eta * self.curr_index * np.sqrt(value)
-
-
-class SubgoalTemporalReward(SubgoalReward):
-    """サブゴールに到達したときにηの報酬を生成する関数
-    
-    Raises:
-        Exception: [description]
-    
-    Returns:
-        [type] -- [description]
-    """
-    def __init__(self, discount, eta, subgoal_serieses, nfeatures):
-        super(SubgoalTemporalReward, self).__init__(discount, eta, subgoal_serieses, nfeatures)
-
-    def value(self, state, done):
-        last_val = self.curr_val
-        self.curr_val = 0
-        for subgoal_series in self.subgoal_serieses:
-            if state in subgoal_series:
-                logger.debug(f"Hit subgoal {state}")
-                self.curr_subgoal_series = subgoal_series
-                logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                self.curr_val = self.eta + 0.1 * subgoal_series.index(state)
-        additional_reward = self.discount * self.curr_val - last_val
-
-        if done:
-            self.curr_subgoal_series = {}
-            self.curr_val = 0
-            self.curr_index = 0
-        
-        return additional_reward
 
 
 class NaiveSubgoalRewardShaping(SubgoalReward):
@@ -272,163 +171,6 @@ class NaiveSubgoalRewardShaping(SubgoalReward):
             self.curr_index = 0
         
         return additional_reward
-
-
-class NegativeSubgoalRewardShaping(SubgoalReward):
-    def __init__(self, discount, eta, subgoal_serieses, nfeatures, rho=100):
-        super(NegativeSubgoalRewardShaping, self).__init__(discount, eta, subgoal_serieses, nfeatures)
-        self.relaxation_rate = 0.5
-        self.rho = rho
-        self.curr_val = rho
-        self.potential_values = []
-
-    def value(self, state, done):
-        last_val = self.curr_val
-        if len(self.curr_subgoal_series) == 0:
-            # サブゴールを1つも発見していない状況
-            for subgoal_series in self.subgoal_serieses:
-                if state in subgoal_series:
-                    logger.debug(f"Hit subgoal {state}")
-                    self.curr_subgoal_series = subgoal_series
-                    logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                    self.curr_index = subgoal_series.index(state) + 1
-        elif self.curr_index < len(self.curr_subgoal_series):
-            # サブゴールがまだある
-            if state == self.curr_subgoal_series[self.curr_index]:
-                logger.debug(f"Hit subgoal at {state}, index: {self.curr_index}.")
-                self.curr_index += 1
-
-        self.curr_val = 0
-        if not done:
-            self.curr_val = self.negative_potential()
-        self.potential_values.append([str(self.curr_val)])
-        # self.curr_val = self.curr_val - self.penalty()
-        logger.debug(f"potential value: {self.curr_val}, {last_val}") 
-        # print(f"{self.curr_val}")
-        additional_reward = self.discount * self.curr_val - last_val
-        if done:
-            self.curr_subgoal_series = {}
-            self.curr_val = 0
-            self.curr_index = 0
-            self.potential_values.append([])
-        logger.debug(f"additional reward: {additional_reward}")
-        return additional_reward
-
-    def negative_potential(self):
-        return -self.rho * self.relaxation_rate ** self.curr_index
-    
-    def positive_potential(self):
-        return self.rho * self.relaxation_rate ** self.curr_index
-    
-    def export(self, file_name):
-        with open(file_name, "w", encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerows(self.potential_values)
-
-
-class NoPotentialRewardShaping(SubgoalReward):
-    """サブゴールに到達したときにηの報酬を生成する関数 without potential based
-    
-    Raises:
-        Exception: [description]
-    
-    Returns:
-        [type] -- [description]
-    """
-    def __init__(self, discount, eta, subgoal_serieses, nfeatures):
-        super().__init__(discount, eta, subgoal_serieses, nfeatures)
-
-    def value(self, state, done):
-        # last_val = self.curr_val
-        additional_reward = 0
-        for subgoal_series in self.subgoal_serieses:
-            if state in subgoal_series:
-                logger.debug(f"Hit subgoal {state}")
-                self.curr_subgoal_series = subgoal_series
-                additional_reward = self.eta + 0.1 * subgoal_series.index(state)
-                logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                logger.debug(f"additional reward {additional_reward}")
-
-        if done:
-            self.curr_subgoal_series = {}
-        
-        return additional_reward
-
-
-class SubgoalThroughPotentialRewardShaping(SubgoalReward):
-    """サブゴール発見後、サブゴールから離れる場合に正の報酬値が生成される。サブゴールに留まる場合は負の値
-    
-    Arguments:
-        SubgoalReward {[type]} -- [description]
-    
-    Returns:
-        [type] -- [description]
-    """
-    def __init__(self, discount, eta, subgoal_serieses, nfeatures, rho):
-        super().__init__(discount, eta, subgoal_serieses, nfeatures)
-        self.time = 0 # 時間（ステップ数）
-        self.potential_values = []
-        self.curr_k = 0
-        self.rho = rho
-        self.curr_val = self.get_potential(None, 0, 0, 1)
-
-    def value(self, state, done):
-        last_val = self.curr_val
-        pre_k = self.curr_k
-        self.time += 1
-        if len(self.curr_subgoal_series) == 0:
-            # サブゴールを1つも発見していない状況
-            for subgoal_series in self.subgoal_serieses:
-                if state in subgoal_series:
-                    logger.debug(f"Hit subgoal {state}")
-                    self.curr_subgoal_series = subgoal_series
-                    logger.debug(f"subgoal series {self.curr_subgoal_series}")
-                    self.curr_k = subgoal_series.index(state) + 1
-                    self.time = 0
-                    break
-        else:
-        # elif self.curr_k < len(self.curr_subgoal_series):
-            # サブゴールがまだある
-            if state in self.curr_subgoal_series:
-                temp_k = self.curr_subgoal_series.index(state) + 1
-                # サブゴールが進行していればcurr_kを更新
-                if temp_k > pre_k:
-                    self.curr_k = temp_k
-                    # 到達したらタイムステップはリセット
-                    self.time = 0
-                logger.debug(f"Hit subgoal at {state}, index: {self.curr_k}.")
-
-        self.curr_val = self.get_potential(state, pre_k, self.curr_k, self.time)
-        self.potential_values.append([str(self.curr_val)])
-        additional_reward = round(self.discount * self.curr_val, 7) - round(last_val, 7)
-        if done:
-            self.curr_subgoal_series = {}
-            self.curr_val = 0
-            self.curr_k = 0
-            self.time = 0
-            self.potential_values.append([])
-        if additional_reward != 0:
-            logger.debug(f"additional reward: {additional_reward}")
-            logger.debug(f"potential value: {self.curr_val}, {last_val}")
-        return additional_reward
-
-    def export(self, file_name):
-        with open(file_name, "w", encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerows(self.potential_values)
-
-    def get_potential(self, state, pre_k, k, t):
-        # potential = self.eta * k
-        # potential = max(self.eta * k - self.rho * t, 0)
-        # potential = self.rho ** k * self.eta ** (2*k-1)
-        potential = 0
-        if k == 1:
-            potential = 0.89
-        elif k == 2:
-            potential = 0.95
-        # if t != 0:
-        #     potential *= self.eta
-        return potential
 
 
 # Online learning of shaping rewards in reinforcement learning

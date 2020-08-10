@@ -18,9 +18,9 @@ class ActorSubgoalCriticAgent:
         self.policy_improvement = PolicyGradient(self.policy, lr_policy)
         self.features = Tabular(nfeatures)
         # self.subgoal_reward = NegativeSubgoalRewardShaping(discount, eta, subgoals, nfeatures, rho)
-        # self.subgoal_reward = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
+        self.subgoal_reward = CumulativeSubgoalRewardWithPenalty(discount, eta, subgoals, nfeatures, rho)
         # self.subgoal_reward = SubgoalTemporalReward(discount, eta, subgoals, nfeatures)
-        self.subgoal_reward = NaiveSubgoalRewardShaping(discount, eta, subgoals, nfeatures)
+        # self.subgoal_reward = NaiveSubgoalRewardShaping(discount, eta, subgoals, nfeatures)
         self.eta = eta
         self.total_shaped_reward = 0
 

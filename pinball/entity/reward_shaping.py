@@ -220,7 +220,7 @@ class SubgoalCritic:
 
 class SubgoalPotentialRewardShaping:
     def __init__(self, subgoals, gamma, eta, rho):
-        self.subgoals = subgoals #[[{'pos_x':, 'pos_y':, 'rad':float},[{'pos':()}]]
+        self.subgoals = subgoals  # [[{'pos_x':, 'pos_y':, 'rad':float},[{'pos':()}]]
         self.gamma = gamma
         self.eta = eta
         self.rho = rho
@@ -228,7 +228,25 @@ class SubgoalPotentialRewardShaping:
         self.series_index = None
         self.l_subepisodes = 0
         self.is_reach_subgoal = False
-    
+        self.next_subgoals = self.init_next_subgoals(subgoals)  # [{"index": (), "content": {'pos_x",...}}]
+
+    def init_next_subgoals(self, subgoals):
+        next_subgoals = []
+        for i, subgoal in enumerate(subgoals):
+            j = 0
+            next_subgoals.append({
+                "index": (i, j),
+                "content": subgoal[j]})
+        return next_subgoals
+
+    def achieve(self, index):
+        if index[1] + 1 < len(self.subgoals[index[0]]):
+            subgoal = self.subgoals[index[0]][index[1] + 1]
+            self.next_subgoals = [{"index": (index[0], index[1]+1),
+                                   "content": subgoal}]            
+        else:
+            self.next_subgoals = []
+
     def value(self, obs, t, next_obs, next_t):
         # TODO self.potential(obs, t)、ここの値が間違い
         # potential = self.elliptic_potential(obs, t)
@@ -269,6 +287,12 @@ class SubgoalPotentialRewardShaping:
 
     def is_subgoal(self, obs):
         # サブゴールの判定
+        for subgoal in self.next_subgoals:
+            if self.at_subgoal(obs, subgoal["content"]):
+                self.achieve(subgoal["index"])
+                return True
+        return False
+
         if self.series_index is None:
             # まだサブゴール系列が決定していない
             for series_index, series in enumerate(self.subgoals):
@@ -289,13 +313,13 @@ class SubgoalPotentialRewardShaping:
                     return True
         self.is_reach_subgoal = False
         return False
-    
+
     def at_subgoal(self, obs, subgoal):
         # サブゴールの領域に到達したかどうか？状態は[x, y, vx, vy]だから位置情報だけを用いる。
         return (
             np.linalg.norm(np.array(obs[:2]) - np.array([subgoal['pos_x'], subgoal['pos_y']]))
                 < subgoal['rad']
         )
-    
+
     def get_is_reach_subgoal(self):
         return self.is_reach_subgoal
