@@ -1,9 +1,10 @@
 import argparse
 import time
 import gym
+import logging
 from datetime import datetime
 import os
-from gym import wrappers, logger
+from gym import wrappers
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,6 +14,9 @@ from entity.ac_agent import SubgoalACAgent, ActorCriticAgent
 import gym_pinball
 from tqdm import tqdm, trange
 from visualizer import Visualizer
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def export_csv(file_path, file_name, array):
@@ -24,7 +28,7 @@ def export_csv(file_path, file_name, array):
 
 
 def moved_average(data, window_size):
-    b=np.ones(window_size)/window_size
+    b = np.ones(window_size)/window_size
     return np.convolve(data, b, mode='same')
 
 
@@ -48,7 +52,7 @@ def load_subgoals(file_path):
 
 
 def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, subgoals, l_id):
-    print(f"start run {run}")
+    logger.info(f"start run {run}")
     subg_confs = list(itertools.chain.from_iterable(subgoals))
     env = gym.make(env_id, subg_confs=subg_confs)
     outdir = '/tmp/random-agent-results'
@@ -69,7 +73,7 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
     max_q = 0.0
     date = datetime.now().strftime("%Y%m%d")
     # time = datetime.now().strftime("%H%M")
-    saved_dir = os.path.join("data", date) #, time
+    saved_dir = os.path.join("data", date)  # , time
     start_time = time.time()
     for i in trange(episode_count):
         total_reward = 0
@@ -98,12 +102,11 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
             max_q_list.append(tmp_max_q)
             max_q = tmp_max_q if tmp_max_q > max_q else max_q
             if done:
-                print("episode: {}, steps: {}, total_reward: {}, total_shaped_reward: {}, max_q: {}, max_td_error: {}"
+                logger.info("episode: {}, steps: {}, total_reward: {}, total_shaped_reward: {}, max_q: {}, max_td_error: {}"
                         .format(i, n_steps, total_reward, int(total_shaped_reward), int(max_q), int(agent.get_max_td_error())))
                 total_reward_list.append(total_reward)
                 steps_list.append(n_steps)
                 break
-            
             if is_render:
                 vis.set_action_dist(agent.vis_action_dist, action)
                 vis.pause(.0001)
@@ -115,16 +118,15 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
     saved_res_dir = os.path.join(saved_dir, 'res')
     export_csv(saved_res_dir, f"{exe_id}_total_reward_{l_id}_{run}_eta={eta}_rho={rho}.csv", total_reward_list)
     td_error_list = agent.td_error_list
-    td_error_list_meta = agent.td_error_list_meta
     export_csv(saved_res_dir, f"{exe_id}_td_error_{l_id}_{run}_eta={eta}_rho={rho}.csv", td_error_list)
     total_reward_list = np.array(total_reward_list)
     steps_list = np.array(steps_list)
     max_q_list = np.array(max_q_list)
-    print("Average return: {}".format(np.average(total_reward_list)))
+    logger.info("Average return: {}".format(np.average(total_reward_list)))
     steps_file_path = os.path.join(saved_res_dir, f"{exe_id}_steps_{l_id}_{run}_eta={eta}_rho={rho}.csv")
-    steps_df = pd.DataFrame(steps_list).to_csv(steps_file_path)
+    pd.DataFrame(steps_list).to_csv(steps_file_path)
     runtime_file_path = os.path.join(saved_res_dir, f"{exe_id}_runtime_{l_id}_{run}_eta={eta}_rho={rho}.csv")
-    runtimes_df = pd.DataFrame(runtimes, columns=["runtime"]).to_csv(runtime_file_path)
+    pd.DataFrame(runtimes, columns=["runtime"]).to_csv(runtime_file_path)
     # save model
     # saved_model_dir = os.path.join(saved_dir, 'model')
     # agent.save_model(saved_model_dir)
@@ -133,27 +135,29 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
 
 def main():
     learning_time = time.time()
-    rhos = [0.01]
-    etas = [10000]
+    rhos = [0]
+    etas = [5000]
     # rhos = [1e-02, 1e-03, 1e-04, 1e-05]
     # etas = [1, 10, 100, 1000, 10000]
     if len(args.subg_path) == 0:
-        print("Nothing subgoal path.")
+        logger.info("Nothing subgoal path.")
         subg_serieses = [[[{"pos_x":0.512, "pos_y": 0.682, "rad":0.04}, {"pos_x":0.683, "pos_y":0.296, "rad":0.04}]]] # , {"pos_x":0.9 , "pos_y":0.2 ,"rad": 0.04}
     else:
         subg_serieses = load_subgoals(args.subg_path)
-    
+
     for rho in rhos:
         for eta in etas:
             for l_id, subg_series in enumerate(subg_serieses):
-                print(f"learning: {l_id}/{len(subg_serieses)}")
-                print(f"subgoals: {subg_series}")
+                logger.info(f"learning: {l_id}/{len(subg_serieses)}")
+                logger.info(f"subgoals: {subg_series}")
+                logger.info(f"rho: {rho}, eta: {eta}")
                 for run in range(args.nruns):
                     learning_loop(run, args.env_id, args.nepisodes, args.model,
                                   args.vis, args.id, rho, eta, subg_series, l_id)
                     # Close the env and write monitor result info to disk
     duration = time.time() - learning_time
-    print("Learning time: {}m {}s".format(int(duration//60), int(duration%60)))
+    logger.info("Learning time: {}m {}s".format(int(duration//60), int(duration%60)))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Actor-Critic Learning.')
@@ -164,6 +168,5 @@ if __name__ == '__main__':
     parser.add_argument('--nruns', default=25, type=int)
     parser.add_argument('--id', default='', type=str)
     parser.add_argument('--subg-path', default='', type=str)
-    
     args = parser.parse_args()
     main()

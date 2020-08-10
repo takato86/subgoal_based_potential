@@ -5,7 +5,6 @@ import copy
 logger = logging.getLogger('__main__')
 
 
-
 class NaiveRewardShaping:
     def __init__(self, subg_serieses, gamma, eta):
         print("Naive Reward Shaping!")
@@ -148,7 +147,6 @@ class SubgoalSarsaRewardShaping:
             return start
         return -1
 
-
     def at_subgoal(self, obs, subgoal):
         # サブゴールの領域に到達したかどうか？状態は[x, y, vx, vy]だから位置情報だけを用いる。
         return (
@@ -224,11 +222,9 @@ class SubgoalPotentialRewardShaping:
         self.gamma = gamma
         self.eta = eta
         self.rho = rho
-        self.curr_index = 0
-        self.series_index = None
-        self.l_subepisodes = 0
         self.is_reach_subgoal = False
         self.next_subgoals = self.init_next_subgoals(subgoals)  # [{"index": (), "content": {'pos_x",...}}]
+        self.potential_basis = 0
 
     def init_next_subgoals(self, subgoals):
         next_subgoals = []
@@ -240,6 +236,7 @@ class SubgoalPotentialRewardShaping:
         return next_subgoals
 
     def achieve(self, index):
+        logger.info(f"Achieve the subgoal: {self.subgoals[index[0]][index[1]]}")
         if index[1] + 1 < len(self.subgoals[index[0]]):
             subgoal = self.subgoals[index[0]][index[1] + 1]
             self.next_subgoals = [{"index": (index[0], index[1]+1),
@@ -259,28 +256,25 @@ class SubgoalPotentialRewardShaping:
         return value
 
     def reset(self):
-        self.series_index = None
-        self.l_subepisodes = 0
         self.is_reach_subgoal = False
-        self.curr_index = 0
+        self.next_subgoals = self.init_next_subgoals(self.subgoals)
+        self.potential_basis = 0
 
     def reduction_potential(self, obs, t):
         if self.is_subgoal(obs):
-            print(f"reach subgoal {self.curr_index}!")
-            phi = self.eta * self.curr_index
+            phi = self.eta * self.potential_basis
         else:
-            phi = max(self.eta * self.curr_index - self.rho * t, 0)
+            phi = max(self.eta * self.potential_basis - self.rho * t, 0)
         return phi
 
     def elliptic_potential(self, obs, t):
         if self.is_subgoal(obs):
             # サブゴール達成時はtを考慮しない。
-            print(f"reach subgoal {self.curr_index}!")
-            phi = self.eta * self.curr_index
+            phi = self.eta * self.potential_basis
         else:
             basis = 1 - t**2 / self.rho**2
             if basis > 0:
-                phi = self.eta * self.curr_index * np.sqrt(basis)
+                phi = self.eta * self.potential_basis * np.sqrt(basis)
             else:
                 phi = 0
         return phi
@@ -290,27 +284,9 @@ class SubgoalPotentialRewardShaping:
         for subgoal in self.next_subgoals:
             if self.at_subgoal(obs, subgoal["content"]):
                 self.achieve(subgoal["index"])
+                self.is_reach_subgoal = True
+                self.potential_basis += 1
                 return True
-        return False
-
-        if self.series_index is None:
-            # まだサブゴール系列が決定していない
-            for series_index, series in enumerate(self.subgoals):
-                for i, subgoal in enumerate(series):
-                    if self.at_subgoal(obs, subgoal):
-                        self.series_index = series_index
-                        self.curr_index = i + 1
-                        self.is_reach_subgoal = True
-                        return True
-        else:
-            # すでにサブゴール系列が決定している
-            for i, subgoal in enumerate(self.subgoals[self.series_index][self.curr_index:]):
-                # 以前発見したサブゴールより後のサブゴールを達成した場合
-                if self.at_subgoal(obs, subgoal):
-                    # import pdb; pdb.set_trace()
-                    self.curr_index += i + 1
-                    self.is_reach_subgoal = True
-                    return True
         self.is_reach_subgoal = False
         return False
 

@@ -176,6 +176,8 @@ class SubgoalACAgent(ActorCriticAgent):
 
         f = self.subgoal_potential_reward_shaping.value(pre_obs, self.pre_l_subepisodes,
                                                         obs, self.l_subepisodes)
+        if done:
+            self.subgoal_potential_reward_shaping.reset()
         # f = self.reward_shaping.value(pre_obs, pre_a, r, obs, done)
         # if done:
         #     self.reward_shaping.reset()

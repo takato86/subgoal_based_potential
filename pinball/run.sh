@@ -1,2 +1,2 @@
 # python main.py --id="actor-critic" --nruns=10 --nepisodes=200 --subg-path="in/subgoals/pinball_subgoals_1.csv"
-python main.py --id="subgoal-potential-human" --nruns=10 --nepisodes=200 --subg-path="in/subgoals/pinball_subgoals_1.csv"
+python main.py --id="subgoal-potential-best" --nruns=10 --nepisodes=200 --subg-path="in/subgoals/pinball_best_subgoals.csv"
