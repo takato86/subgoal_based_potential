@@ -8,7 +8,6 @@ import time
 from .fourier import FourierBasis
 from .policy import SoftmaxPolicy
 from .reward_shaping import SubgoalPotentialRewardShaping,\
-                            SubgoalSarsaRewardShaping,\
                             NaiveRewardShaping
 
 
@@ -35,13 +34,13 @@ class Actor(object):
         # TODO check
         energy = self.value(feat) # / self.temperature # >> (1, #actions)
         return np.exp(energy - logsumexp(energy))
-    
+
     def value(self, feat, action=None):
         energy = np.dot(self.theta, feat)
         if action is None:
             return energy
         return energy[action]
-    
+
     def grad(self, feat, action):
         action_dist = self.pmf(feat)
         action_dist = action_dist.reshape(1, len(action_dist))
@@ -119,7 +118,7 @@ class ActorCriticAgent(object):
         # q_u_list -= q_omega
         self.max_error = abs(error) if abs(error) > self.max_error else self.max_error
         return 0
-    
+
     def get_max_q(self, obs):
         feat = self.fourier_basis(obs)
         q_value = self.critic.value(feat)
@@ -129,13 +128,13 @@ class ActorCriticAgent(object):
         ret_error = self.max_error
         self.max_error = 0
         return ret_error
-    
+
     def save_model(self, dir_path, episode_count):
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         file_path = os.path.join(dir_path, f'ac_model_{episode_count}.npz')
         np.savez(file_path, w_q=self.critic.w_q, theta=self.actor.theta)
-        
+
     def load_model(self, file_path):
         oc_model = np.load(file_path)
         if self._check_model(oc_model):
@@ -143,7 +142,7 @@ class ActorCriticAgent(object):
             self.actor.theta = oc_model['theta']
         else:
             raise Exception('Not suitable model data.')
-        
+
     def _check_model(self, model):
         if model['w_q'].shape != self.critic.w_q.shape:
             return False
@@ -161,11 +160,10 @@ class SubgoalACAgent(ActorCriticAgent):
         self.rho = rho
         self.subgoal_potential_reward_shaping\
             = SubgoalPotentialRewardShaping(subgoals, gamma, eta, rho)
-        # self.reward_shaping = SubgoalSarsaRewardShaping(subgoals, gamma, gamma_v, lr_q, self.fourier_basis)    
         # self.reward_shaping = NaiveRewardShaping(subgoals, gamma, eta)
         self.l_subepisodes = 0
         self.pre_l_subepisodes = 0
-    
+
     def update(self, pre_obs, pre_a, r, obs, a, done):
         self.pre_l_subepisodes = self.l_subepisodes
         self.l_subepisodes += 1
@@ -185,7 +183,3 @@ class SubgoalACAgent(ActorCriticAgent):
         # print(f"f: {f}")
         super().update(pre_obs, pre_a, r+f, obs, a, done)
         return r+f
-
-
-
-    

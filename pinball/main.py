@@ -33,6 +33,7 @@ def moved_average(data, window_size):
 
 
 def load_subgoals(file_path):
+    logger.info(f"Loading {file_path}...")
     subgoals_df = pd.read_csv(file_path)
     subgoals = subgoals_df.groupby(["user_id", "task_id"]).agg(list)
     xs = subgoals["x"].values.tolist()
@@ -95,7 +96,8 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
             # rand_basis = np.random.uniform()
             pre_action = action
             action = agent.act(ob)
-            shaped_reward = agent.update(pre_obs, pre_action, reward, ob, action, done)
+            shaped_reward = agent.update(pre_obs, pre_action, reward, ob,
+                                         action, done)
             total_reward += reward
             total_shaped_reward += shaped_reward
             tmp_max_q = agent.get_max_q(ob)
@@ -103,7 +105,10 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
             max_q = tmp_max_q if tmp_max_q > max_q else max_q
             if done:
                 logger.info("episode: {}, steps: {}, total_reward: {}, total_shaped_reward: {}, max_q: {}, max_td_error: {}"
-                        .format(i, n_steps, total_reward, int(total_shaped_reward), int(max_q), int(agent.get_max_td_error())))
+                            .format(i, n_steps, total_reward,
+                                    int(total_shaped_reward),
+                                    int(max_q),
+                                    int(agent.get_max_td_error())))
                 total_reward_list.append(total_reward)
                 steps_list.append(n_steps)
                 break
@@ -136,12 +141,14 @@ def learning_loop(run, env_id, episode_count, model, visual, exe_id, rho, eta, s
 def main():
     learning_time = time.time()
     rhos = [0]
-    etas = [5000]
+    etas = [1000]
     # rhos = [1e-02, 1e-03, 1e-04, 1e-05]
     # etas = [1, 10, 100, 1000, 10000]
     if len(args.subg_path) == 0:
         logger.info("Nothing subgoal path.")
-        subg_serieses = [[[{"pos_x":0.512, "pos_y": 0.682, "rad":0.04}, {"pos_x":0.683, "pos_y":0.296, "rad":0.04}]]] # , {"pos_x":0.9 , "pos_y":0.2 ,"rad": 0.04}
+        subg_serieses = [[[{"pos_x": 0.512, "pos_y": 0.682, "rad": 0.04},
+                           {"pos_x": 0.683, "pos_y": 0.296, "rad": 0.04}]]]
+                            # , {"pos_x":0.9 , "pos_y":0.2 ,"rad": 0.04}
     else:
         subg_serieses = load_subgoals(args.subg_path)
 
@@ -149,14 +156,15 @@ def main():
         for eta in etas:
             for l_id, subg_series in enumerate(subg_serieses):
                 logger.info(f"learning: {l_id}/{len(subg_serieses)}")
-                logger.info(f"subgoals: {subg_series}")
                 logger.info(f"rho: {rho}, eta: {eta}")
                 for run in range(args.nruns):
                     learning_loop(run, args.env_id, args.nepisodes, args.model,
-                                  args.vis, args.id, rho, eta, subg_series, l_id)
+                                  args.vis, args.id, rho, eta, subg_series,
+                                  l_id)
                     # Close the env and write monitor result info to disk
     duration = time.time() - learning_time
-    logger.info("Learning time: {}m {}s".format(int(duration//60), int(duration%60)))
+    logger.info("Learning time: {}m {}s".format(int(duration//60),
+                                                int(duration % 60)))
 
 
 if __name__ == '__main__':

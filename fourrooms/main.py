@@ -77,6 +77,8 @@ def load_subgoals(file_path, task_id=None):
         subgoal_df = subgoal_df[subgoal_df["task_id"] == task_id]
     subg_serieses_df = subgoal_df.groupby(["user_id", "task_id"]).agg(list)
     subg_serieses = []
+    if not 'state' in subg_serieses_df.columns:
+        return [[]]
     for subg_series in list(subg_serieses_df['state'].values):
         subg_serieses.append([subg_series])
     return subg_serieses

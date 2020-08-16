@@ -13,7 +13,7 @@ class NaiveRewardShaping:
         self.curr_potential = 0
         self.curr_subgoal_index = (0, 0)
         self.eta = eta
-    
+
     def reset(self):
         self.curr_val = 0
         self.curr_subgoal_index = (0, 0)
@@ -225,6 +225,7 @@ class SubgoalPotentialRewardShaping:
         self.is_reach_subgoal = False
         self.next_subgoals = self.init_next_subgoals(subgoals)  # [{"index": (), "content": {'pos_x",...}}]
         self.potential_basis = 0
+        self.potential = 0
 
     def init_next_subgoals(self, subgoals):
         next_subgoals = []
@@ -240,7 +241,7 @@ class SubgoalPotentialRewardShaping:
         if index[1] + 1 < len(self.subgoals[index[0]]):
             subgoal = self.subgoals[index[0]][index[1] + 1]
             self.next_subgoals = [{"index": (index[0], index[1]+1),
-                                   "content": subgoal}]            
+                                   "content": subgoal}]
         else:
             self.next_subgoals = []
 
@@ -248,10 +249,12 @@ class SubgoalPotentialRewardShaping:
         # TODO self.potential(obs, t)、ここの値が間違い
         # potential = self.elliptic_potential(obs, t)
         # next_potential = self.elliptic_potential(next_obs, next_t)
-        potential = self.reduction_potential(obs, t)
         next_potential = self.reduction_potential(next_obs, next_t)
         # print(potential, next_potential)
-        value = self.gamma * next_potential - potential
+        value = self.gamma * next_potential - self.potential
+        if value != 0:
+            logger.debug(f"Value is not zero, potential: {self.potential} and next: {next_potential}")
+        self.potential = next_potential
         # print(f"next_potential: {next_potential}, potential: {potential}")
         return value
 
@@ -259,13 +262,13 @@ class SubgoalPotentialRewardShaping:
         self.is_reach_subgoal = False
         self.next_subgoals = self.init_next_subgoals(self.subgoals)
         self.potential_basis = 0
+        self.potential = 0
 
     def reduction_potential(self, obs, t):
         if self.is_subgoal(obs):
-            phi = self.eta * self.potential_basis
+            return self.eta * self.potential_basis
         else:
-            phi = max(self.eta * self.potential_basis - self.rho * t, 0)
-        return phi
+            return max(self.eta * self.potential_basis - self.rho * t, 0)
 
     def elliptic_potential(self, obs, t):
         if self.is_subgoal(obs):

@@ -52,6 +52,7 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
         self.potential_values = []
         self.next_subgoals = self.init_next_subgoals(subgoal_serieses)
         self.n_achievements = 0
+        self.subgoal_serieses = subgoal_serieses
     
     def init_next_subgoals(self, subgoal_serieses):
         subgoal_dict = {}
@@ -62,10 +63,11 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
         return subgoal_dict
 
     def achieve(self, index):
+        logger.info(f"Achieve the subgoal: {self.subgoal_serieses[index[0]][index[1]]}")
         subgoal_dict = {}
         series = self.subgoal_serieses[index[0]]
         next_x = index[1] + 1
-        if next_x > len(series):
+        if next_x >= len(series):
             return subgoal_dict
         if type(series[next_x]) == list:
             raise NotImplementedError
@@ -96,14 +98,14 @@ class CumulativeSubgoalRewardWithPenalty(SubgoalReward):
 
     def at_subgoal(self, state):
         next_index = self.next_subgoals.get(state)
-        if next_index == None:
+        if next_index is None:
             return False
         else:
             logger.debug(f"Hit subgoal {state}")
             return True
 
     def reset(self):
-        self.next_subgoals = self.init_next_subgoals(subgoal_serieses)
+        self.next_subgoals = self.init_next_subgoals(self.subgoal_serieses)
         self.n_achievements = 0
         self.curr_val = 0
         self.nsteps = 0

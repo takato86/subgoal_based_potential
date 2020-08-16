@@ -31,8 +31,9 @@ class ActorSubgoalCriticAgent:
         phi = self.features(state)
         next_phi = self.features(next_state)
         reward += self.subgoal_reward.value(next_state, done)
-        if reward > 0:
-            logger.info(f"state: {state}, reward value: {reward}")
+        # if reward != 0:
+        #     logger.info("Reward value is positive.")
+        #     logger.info(f"state: {state}, reward value: {reward}")
         critic_feedback = self.critic.update(phi, action, next_phi, reward, done)
         # if args.baseline:
         critic_feedback -= self.critic.value(phi, action)
@@ -46,6 +47,7 @@ class ActorSubgoalCriticAgent:
     def export(self):
         self.subgoal_reward.export("res/potential_values.csv")
 
+
 class PolicyGradient:
     def __init__(self, policy, lr):
         self.lr = lr
@@ -55,6 +57,7 @@ class PolicyGradient:
         actions_pmf = self.policy.pmf(phi)
         self.policy.weights[phi, :] -= self.lr*critic*actions_pmf
         self.policy.weights[phi, action] += self.lr*critic
+
 
 class QLearning:
     def __init__(self, discount, lr, weights):
